@@ -1,27 +1,35 @@
 package com.wiredthing.utils.playSupport.filters
 
-import org.scalatest._
+import org.scalatestplus.play.{OneAppPerSuite, PlaySpec}
 import play.api.test.Helpers._
-import play.api.test.{FakeRequest, WithApplication}
+import play.api.test.{FakeApplication, FakeRequest}
 
-class RewritePlay1AuthenticityTokenTest extends FlatSpec with Matchers {
-  "RewritePlay1AuthenticityToken.addSessionProperty" should "add the property to an empty session" in new WithApplication {
-    val sut = new RewritePlay1AuthenticityToken()
-    sut.addSessionProperty(FakeRequest(POST, "/"), ("foo" -> "bar")).session.get("foo") shouldBe Some("bar")
-  }
+class RewritePlay1AuthenticityTokenTest extends PlaySpec with OneAppPerSuite {
+  implicit override lazy val app =
+    FakeApplication(
+      additionalConfiguration = Map("ehcacheplugin" -> "disabled", "play.crypto.secret" -> "secret")
+    )
 
-  it should "override the session if it exists" in new WithApplication {
-    val sut = new RewritePlay1AuthenticityToken()
-    val request = FakeRequest(POST, "/").withSession("foo" -> "baz")
+  "RewritePlay1AuthenticityToken.addSessionProperty" must {
+    "add the property to an empty session" in {
 
-    sut.addSessionProperty(request, ("foo" -> "bar")).session.get("foo") shouldBe Some("bar")
-  }
+      val sut = new RewritePlay1AuthenticityToken()
+      sut.addSessionProperty(FakeRequest(POST, "/"), ("foo" -> "bar")).session.get("foo") mustBe Some("bar")
 
-  it should "not touch any other session properties" in new WithApplication {
-    val sut = new RewritePlay1AuthenticityToken()
+      "override the session if it exists" in {
+        val sut = new RewritePlay1AuthenticityToken()
+        val request = FakeRequest(POST, "/").withSession("foo" -> "baz")
 
-    val request = FakeRequest(POST, "/").withSession("fib" -> "baz")
+        sut.addSessionProperty(request, ("foo" -> "bar")).session.get("foo") mustBe Some("bar")
+      }
 
-    sut.addSessionProperty(request, ("foo" -> "bar")).session.get("fib") shouldBe Some("baz")
+      "not touch any other session properties" in {
+        val sut = new RewritePlay1AuthenticityToken()
+
+        val request = FakeRequest(POST, "/").withSession("fib" -> "baz")
+
+        sut.addSessionProperty(request, ("foo" -> "bar")).session.get("fib") mustBe Some("baz")
+      }
+    }
   }
 }

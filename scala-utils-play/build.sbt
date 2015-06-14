@@ -9,10 +9,13 @@ publishTo := {
     Some("WiredThing Internal Libraries Repository" at "https://wiredthing.artifactoryonline.com/wiredthing/libs-releases-local")
 }
 
+val playVersion = "2.4.0-RC2"
+
 libraryDependencies ++= Seq(
-  "com.typesafe.play" %% "play" % "2.3.8",
-  "com.typesafe.play" %% "play-json" % "2.3.8",
-  "com.typesafe.play" %% "play-ws" % "2.3.8",
-  "com.typesafe.play" %% "play-test" % "2.3.8" % Test,
+  "com.typesafe.play" %% "play" % playVersion,
+  "com.typesafe.play" %% "play-json" % playVersion,
+  "com.typesafe.play" %% "play-ws" % playVersion,
+  "com.typesafe.play" %% "play-test" % playVersion % Test,
+  "org.scalatestplus" %% "play" % "1.4.0-M2" % "test",
   "com.ning" % "async-http-client" % "1.8.15"
 )

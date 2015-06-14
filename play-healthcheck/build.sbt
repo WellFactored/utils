@@ -1,5 +1,3 @@
-import NativePackagerKeys._
-
 name := "healthcheck"
 
 version := IO.read(baseDirectory.value / "version").trim()

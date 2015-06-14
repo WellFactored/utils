@@ -35,7 +35,7 @@ libraryDependencies in ThisBuild ++= Seq(
   "joda-time" % "joda-time" % "2.3",
   "org.joda" % "joda-convert" % "1.2",
   "org.scalaz" %% "scalaz-core" % "7.1.0",
-  "org.scalatest" %% "scalatest" % "2.1.7" % "test"
+  "org.scalatest" %% "scalatest" % "2.2.1" % "test"
 )
 
 shellPrompt in ThisBuild := { state: State => "utils " + Project.extract(state).currentRef.project + "> " }
