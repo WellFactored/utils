@@ -1,8 +1,6 @@
 package com.wiredthing.utils.slick.dbgen
 
-import shapeless.ops.hlist.ToTraversable
-import shapeless.ops.record.{Values, Keys}
-import shapeless.{LabelledGeneric, HList}
+import shapeless.Typeable
 
 case class ModuleDef(name: String, tables: Seq[TableGen] = Seq(), dependsOn: Seq[ModuleDef] = Seq()) {
   def generate: Seq[String] = {
@@ -20,14 +18,7 @@ case class ModuleDef(name: String, tables: Seq[TableGen] = Seq(), dependsOn: Seq
     (head :: tableDefs :: foot :: Nil).flatten
   }
 
-  def withTableFor[T, R <: HList, KO <: HList, K, KLub, VO <: HList]
-  (row: TableRow[T])
-  (implicit
-   lgen: LabelledGeneric.Aux[T, R],
-   keys: Keys.Aux[R, KO],
-   values: Values.Aux[R, VO],
-   fold: FoldTypes[VO],
-   travK: ToTraversable.Aux[KO, List, KLub]) = copy(tables = (new TableGenerator(row) +: tables).reverse)
+  def withTableFor[T](implicit ty: Typeable[T], ti:TableInfo[T]) = copy(tables = (new TableGenerator[T] +: tables).reverse)
 
   def dependsOn(mods: ModuleDef*): ModuleDef = copy(dependsOn = (mods ++: dependsOn).reverse)
 }

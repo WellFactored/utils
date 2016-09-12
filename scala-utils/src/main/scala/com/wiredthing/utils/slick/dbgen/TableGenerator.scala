@@ -1,6 +1,5 @@
 package com.wiredthing.utils.slick.dbgen
 
-import com.wiredthing.utils.NonBlankString
 import com.wiredthing.utils.slick.IdType
 import shapeless._
 import shapeless.ops.hlist.ToTraversable
@@ -12,19 +11,6 @@ trait StringOps {
   def lowerCaseFirst(s: String): String = s.substring(0, 1).toLowerCase + s.substring(1)
 
   def stripFromEnd(s: String, count: Int) = s.substring(0, s.length - count)
-}
-
-case class TableRow[T](implicit ty: Typeable[T]) extends StringOps {
-
-  val name = ty.describe
-
-  val root = stripFromEnd(name, 3)
-
-  val tableSQLName = decamelise(root).toUpperCase
-
-  val tableClassName = s"${root}Table"
-
-  val classDef = s"""class $tableClassName(tag: Tag) extends Table[$name](tag, "$tableSQLName")"""
 }
 
 trait TableGen {
@@ -46,19 +32,34 @@ object TableGenerator extends StringOps {
   }
 }
 
+trait TableInfo[T] {
+  def namesAndTypes: List[TableColumn[_]]
+}
 
-class TableGenerator[T, R <: HList, KO <: HList, K, KLub, VO <: HList](row: TableRow[T])(implicit
-                                                                                         lgen: LabelledGeneric.Aux[T, R],
-                                                                                         keys: Keys.Aux[R, KO],
-                                                                                         values: Values.Aux[R, VO],
-                                                                                         fold: FoldTypes[VO],
-                                                                                         travK: ToTraversable.Aux[KO, List, KLub]) extends TableGen with StringOps {
-  lazy val namesAndTypes: List[TableColumn[_]] = {
-    val names = keys().toList.asInstanceOf[List[Symbol]].map(_.name)
-    val types = fold()
-    names.zip(types).map { case (n, t) => TableColumn(n, t) }
+trait TableGeneratorGen {
+  implicit def generator[T, R <: HList, KO <: HList, K, KLub, VO <: HList](implicit
+                                                                           lgen: LabelledGeneric.Aux[T, R],
+                                                                           keys: Keys.Aux[R, KO],
+                                                                           values: Values.Aux[R, VO],
+                                                                           fold: FoldTypes[VO],
+                                                                           travK: ToTraversable.Aux[KO, List, KLub]): TableInfo[T] = {
+    new TableInfo[T] {
+      override def namesAndTypes: List[TableColumn[_]] = {
+        val names = keys().toList.asInstanceOf[List[Symbol]].map(_.name)
+        val types = fold()
+        names.zip(types).map { case (n, t) => TableColumn(n, t) }
+      }
+    }
   }
+}
 
+class TableGenerator[T](implicit ty: Typeable[T], ti:TableInfo[T]) extends TableGen with StringOps  with TableGeneratorGen{
+  lazy val namesAndTypes: List[TableColumn[_]] = ti.namesAndTypes
+  val name = ty.describe
+  val root = stripFromEnd(name, 3)
+  val tableSQLName = decamelise(root).toUpperCase
+  val tableClassName = s"${root}Table"
+  val classDef = s"""class $tableClassName(tag: Tag) extends Table[$name](tag, "$tableSQLName")"""
 
   def generateDefsForColumn(col: TableColumn[_]): Seq[String] = {
     val colOpts = if (col.opts.isEmpty) "" else s""", ${col.opts.mkString(", ")}"""
@@ -66,8 +67,8 @@ class TableGenerator[T, R <: HList, KO <: HList, K, KLub, VO <: HList](row: Tabl
 
     if (col.n.endsWith("Id")) {
       val indexRoot = stripFromEnd(col.sqlName, 3)
-      val fkSQLName = s"${row.root.toLowerCase}_${indexRoot.toLowerCase}_fk"
-      val idxSQLName = s"${row.root.toLowerCase}_${indexRoot.toLowerCase}_idx"
+      val fkSQLName = s"${root.toLowerCase}_${indexRoot.toLowerCase}_fk"
+      val idxSQLName = s"${root.toLowerCase}_${indexRoot.toLowerCase}_idx"
       val idStripped = stripFromEnd(col.n, 2)
       val identifierRoot = lowerCaseFirst(idStripped)
       val fk = s"""def $identifierRoot = foreignKey("$fkSQLName", ${col.n}, ${identifierRoot + "Table"})(_.id, onDelete = ForeignKeyAction.Cascade)"""
@@ -83,20 +84,20 @@ class TableGenerator[T, R <: HList, KO <: HList, K, KLub, VO <: HList](row: Tabl
 
     val typeMappers = namesAndTypes.filter(_.needsTypeMapper).map(_.typeMapper)
 
-    val starDef = s"def * = (${namesAndTypes.map(_.n).mkString(", ")}) <> (${row.name}.tupled, ${row.name}.unapply)"
+    val starDef = s"def * = (${namesAndTypes.map(_.n).mkString(", ")}) <> ($name.tupled, $name.unapply)"
 
     Seq(
       Seq(typeMappers: _*),
-      Seq(queryAlias, row.classDef + " {"),
+      Seq(queryAlias, classDef + " {"),
       Seq(colDefs.map(d => "    " + d): _*),
       Seq("    " + starDef, "}", tableVal)
     ).flatten
   }
 
 
-  lazy val tableVal = s"lazy val ${lowerCaseFirst(row.root)}Table = TableQuery[${row.tableClassName}]"
+  lazy val tableVal = s"lazy val ${lowerCaseFirst(root)}Table = TableQuery[$tableClassName]"
 
-  val queryAlias = s"type ${row.root}Query = Query[${row.root}Table, ${row.name}, Seq]"
+  val queryAlias = s"type ${root}Query = Query[${root}Table, $name, Seq]"
 
 }
 

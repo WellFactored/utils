@@ -17,7 +17,7 @@ object TableGeneratorTestData {
 
 }
 
-class TableGeneratorTest extends FlatSpec with Matchers {
+class TableGeneratorTest extends FlatSpec with Matchers with TableGeneratorGen{
 
   import TableGeneratorTestData._
 
@@ -25,7 +25,7 @@ class TableGeneratorTest extends FlatSpec with Matchers {
   implicit def idTypeTypeable[T](implicit tt: Typeable[T]) = TableGenerator.idTypeTypeable
 
   "generateColumnDefs" should "give a column, fk and index" in {
-    val gen = new TableGenerator(TableRow[TestRow])
+    val gen = new TableGenerator[TestRow]
 
     val expectedColDef = """def anotherTestId = column[AnotherTestId]("another_test_id", O.Length(IdType.length))"""
     val expectedFkDef = """def anotherTest = foreignKey("test_another_test_fk", anotherTestId, anotherTestTable)(_.id, onDelete = ForeignKeyAction.Cascade)"""
@@ -38,13 +38,13 @@ class TableGeneratorTest extends FlatSpec with Matchers {
   }
 
   "tableVal" should "give the right TableQuery definition" in {
-    val gen = new TableGenerator(TableRow[AnotherTestRow])
+    val gen = new TableGenerator[AnotherTestRow]
 
     gen.tableVal shouldBe "lazy val anotherTestTable = TableQuery[AnotherTestTable]"
   }
 
   "generatColumnDefs" should "give right options for BigDecimal" in {
-    val gen = new TableGenerator(TableRow[BigDecimalTestRow])
+    val gen = new TableGenerator[BigDecimalTestRow]
 
     gen.generateDefsForColumn(TableColumn("n", Typeable[BigDecimal])).head shouldBe """def n = column[BigDecimal]("n", O.SqlType("decimal(9, 2)"))"""
 
